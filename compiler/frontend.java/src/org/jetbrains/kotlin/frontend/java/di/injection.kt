@@ -88,7 +88,6 @@ fun createContainerForLazyResolveWithJava(
         packagePartProvider: PackagePartProvider,
         jvmTarget: JvmTarget,
         languageVersionSettings: LanguageVersionSettings,
-        useBuiltInsProvider: Boolean,
         configureJavaClassFinder: (StorageComponentContainer.() -> Unit)? = null,
         javaClassTracker: JavaClassesTracker? = null
 ): StorageComponentContainer = createContainer("LazyResolveWithJava", JvmPlatform) {
@@ -112,10 +111,8 @@ fun createContainerForLazyResolveWithJava(
 
     useInstance(languageVersionSettings.getFlag(JvmAnalysisFlags.jsr305))
 
-    if (useBuiltInsProvider) {
-        useInstance((moduleContext.module.builtIns as JvmBuiltIns).settings)
-        useImpl<JvmBuiltInsPackageFragmentProvider>()
-    }
+    useInstance((moduleContext.module.builtIns as JvmBuiltIns).settings)
+    useImpl<JvmBuiltInsPackageFragmentProvider>()
 
     useInstance(javaClassTracker ?: JavaClassesTracker.Default)
     useInstance(
@@ -148,9 +145,7 @@ fun createContainerForTopDownAnalyzerForJvm(
 ): ComponentProvider = createContainerForLazyResolveWithJava(
         moduleContext, bindingTrace, declarationProviderFactory, moduleContentScope, moduleClassResolver,
         targetEnvironment, lookupTracker, expectActualTracker, packagePartProvider, jvmTarget, languageVersionSettings,
-        useBuiltInsProvider = true,
-        configureJavaClassFinder = configureJavaClassFinder,
-        javaClassTracker = javaClassTracker
+        configureJavaClassFinder, javaClassTracker
 )
 
 

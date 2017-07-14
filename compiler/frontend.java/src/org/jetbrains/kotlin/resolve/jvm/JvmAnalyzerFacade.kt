@@ -99,8 +99,7 @@ object JvmAnalyzerFacade : ResolverForModuleFactory() {
             ExpectActualTracker.DoNothing,
             packagePartProvider,
             jvmTarget,
-            languageVersionSettings,
-            true
+            languageVersionSettings
         )
 
         val providersForModule = arrayListOf(
