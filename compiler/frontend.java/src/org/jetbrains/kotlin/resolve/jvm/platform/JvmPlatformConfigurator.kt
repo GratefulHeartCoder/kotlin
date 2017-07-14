@@ -41,6 +41,7 @@ object JvmPlatformConfigurator : PlatformConfiguratorBase(
     ),
 
     additionalCallCheckers = listOf(
+        MissingBuiltInDeclarationChecker,
         JavaAnnotationCallChecker(),
         SuspensionPointInsideMutexLockChecker(),
         JavaClassOnCompanionChecker(),
@@ -62,7 +63,8 @@ object JvmPlatformConfigurator : PlatformConfiguratorBase(
     ),
 
     additionalClassifierUsageCheckers = listOf(
-        BigFunctionTypeAvailabilityChecker
+        BigFunctionTypeAvailabilityChecker,
+        MissingBuiltInDeclarationChecker.ClassifierUsage
     ),
 
     additionalAnnotationCheckers = listOf(

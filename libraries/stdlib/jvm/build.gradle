@@ -82,6 +82,7 @@ dependencies {
     coroutinesExperimentalCompile sourceSets.main.output
     coroutinesExperimentalTestCompile sourceSets.test.output
 
+    // TODO: should this be a compile dependency?
     builtins project(':core:builtins')
 }
 
