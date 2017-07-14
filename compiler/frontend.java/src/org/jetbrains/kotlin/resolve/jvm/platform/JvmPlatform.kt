@@ -32,7 +32,8 @@ object JvmPlatform : TargetPlatform("JVM") {
             }
         }
 
-        for (builtInPackage in JvmBuiltIns(storageManager).builtInPackagesImportedByDefault) {
+        val builtIns = JvmBuiltIns(storageManager, loadBuiltInsFromCurrentClassLoader = true, isFallback = true)
+        for (builtInPackage in builtIns.builtInPackagesImportedByDefault) {
             addAllClassifiersFromScope(builtInPackage.memberScope)
         }
     }
