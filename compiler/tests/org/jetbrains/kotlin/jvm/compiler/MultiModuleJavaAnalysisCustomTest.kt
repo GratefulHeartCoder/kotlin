@@ -24,9 +24,6 @@ import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.builtins.jvm.JvmBuiltIns
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
-import org.jetbrains.kotlin.config.LanguageFeature
-import org.jetbrains.kotlin.config.LanguageVersionSettings
-import org.jetbrains.kotlin.container.get
 import org.jetbrains.kotlin.context.ProjectContext
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
@@ -50,13 +47,17 @@ import java.io.File
 import java.util.*
 
 class MultiModuleJavaAnalysisCustomTest : KtUsefulTestCase() {
-
     private class TestModule(
             val _name: String, val kotlinFiles: List<KtFile>, val javaFilesScope: GlobalSearchScope,
             val _dependencies: TestModule.() -> List<TestModule>
     ) : ModuleInfo {
-        override fun dependencies() = _dependencies()
+        override fun dependencies() = _dependencies() + BuiltInModule
         override val name = Name.special("<$_name>")
+    }
+
+    private object BuiltInModule : ModuleInfo {
+        override fun dependencies() = listOf(this)
+        override val name = Name.special("<built-in module>")
     }
 
     fun testJavaEntitiesBelongToCorrectModule() {
@@ -64,11 +65,18 @@ class MultiModuleJavaAnalysisCustomTest : KtUsefulTestCase() {
         val environment = createEnvironment(moduleDirs)
         val modules = setupModules(environment, moduleDirs)
         val projectContext = ProjectContext(environment.project)
-        val builtIns = JvmBuiltIns(projectContext.storageManager)
+        val builtIns = JvmBuiltIns(projectContext.storageManager, false)
         val resolverForProject = ResolverForProjectImpl(
             "test",
-            projectContext, modules,
-            modulesContent = { module -> ModuleContent(module, module.kotlinFiles, module.javaFilesScope) },
+            projectContext, modules + BuiltInModule,
+            modulesContent = { module ->
+                if (module is TestModule)
+                    ModuleContent(module, module.kotlinFiles, module.javaFilesScope)
+                else {
+                    val allJavaFiles = GlobalSearchScope.union(modules.map(TestModule::javaFilesScope).toTypedArray())
+                    ModuleContent(module, emptyList(), GlobalSearchScope.notScope(allJavaFiles))
+                }
+            },
             modulePlatforms = { JvmPlatform.multiTargetPlatform },
             moduleLanguageSettingsProvider = LanguageSettingsProvider.Default,
             resolverForModuleFactoryByPlatform = { JvmAnalyzerFacade },
@@ -84,11 +92,8 @@ class MultiModuleJavaAnalysisCustomTest : KtUsefulTestCase() {
             builtIns = builtIns
         )
 
-        builtIns.initialize(
-                resolverForProject.descriptorForModule(resolverForProject.allModules.first()),
-                resolverForProject.resolverForModule(resolverForProject.allModules.first())
-                        .componentProvider.get<LanguageVersionSettings>()
-                        .supportsFeature(LanguageFeature.AdditionalBuiltInsMembers))
+        builtIns.builtInsModule = resolverForProject.descriptorForModule(BuiltInModule)
+        builtIns.initialize(builtIns.builtInsModule, true)
 
         performChecks(resolverForProject, modules)
     }
@@ -124,7 +129,7 @@ class MultiModuleJavaAnalysisCustomTest : KtUsefulTestCase() {
         return modules.values.toList()
     }
 
-    private fun performChecks(resolverForProject: ResolverForProject<TestModule>, modules: List<TestModule>) {
+    private fun performChecks(resolverForProject: ResolverForProject<ModuleInfo>, modules: List<TestModule>) {
         modules.forEach {
             module ->
             val moduleDescriptor = resolverForProject.descriptorForModule(module)
