@@ -30,6 +30,8 @@ class JvmPlatformKindResolution : IdePlatformKindResolution {
         get() = JvmAnalyzerFacade
 
     override fun createBuiltIns(settings: PlatformAnalysisSettings, projectContext: ProjectContext): KotlinBuiltIns {
-        return if (settings.sdk != null) JvmBuiltIns(projectContext.storageManager) else DefaultBuiltIns.Instance
+        return if (settings.sdk != null)
+            JvmBuiltIns(projectContext.storageManager, loadBuiltInsFromCurrentClassLoader = true, isFallback = true)
+        else DefaultBuiltIns.Instance
     }
 }
