@@ -27,13 +27,14 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.util.Alarm
 import com.intellij.util.io.HttpRequests
 import com.intellij.util.text.VersionComparatorUtil
-import org.jetbrains.kotlin.idea.update.PluginUpdateVerifier
+import org.jdom.JDOMException
 import org.jetbrains.kotlin.idea.update.verify
 import java.io.File
 import java.io.IOException
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.net.URLEncoder
+import java.util.*
 import java.util.concurrent.TimeUnit
 
 sealed class PluginUpdateStatus {
@@ -322,5 +323,39 @@ class KotlinPluginUpdater(private val propertiesComponent: PropertiesComponent) 
         private val LOG = Logger.getInstance(KotlinPluginUpdater::class.java)
 
         fun getInstance(): KotlinPluginUpdater = ServiceManager.getService(KotlinPluginUpdater::class.java)
+
+        @Throws(IOException::class, JDOMException::class)
+        fun fetchPluginReleaseDate(pluginId: String, version: String): Date? {
+            // TODO: Need a better request
+            val url =
+                "https://plugins.jetbrains.com/plugins/list?pluginId=$pluginId&pluginVersion=$version"
+
+            val responseDoc = HttpRequests.request(url).connect {
+                JDOMUtil.load(it.inputStream)
+            }
+
+            if (responseDoc.name != "plugin-repository") {
+                return null
+            }
+
+            if (responseDoc.children.isEmpty()) {
+                return null
+            }
+
+            val dateString = responseDoc
+                .getChild("category")
+                ?.getChildren("idea-plugin")
+                ?.mapNotNull { pluginElement ->
+                    if (pluginElement.getChild("version")?.text == version) {
+                        pluginElement.getAttribute("date")
+                    } else {
+                        null
+                    }
+                }
+                ?.singleOrNull()
+                ?: return null
+
+            return Date(dateString.longValue)
+        }
     }
 }
