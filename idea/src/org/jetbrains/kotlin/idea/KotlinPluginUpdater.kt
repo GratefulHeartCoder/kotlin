@@ -27,6 +27,8 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.util.Alarm
 import com.intellij.util.io.HttpRequests
 import com.intellij.util.text.VersionComparatorUtil
+import org.jdom.Attribute
+import org.jdom.DataConversionException
 import org.jdom.JDOMException
 import org.jetbrains.kotlin.idea.update.verify
 import java.io.File
@@ -34,7 +36,9 @@ import java.io.IOException
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.net.URLEncoder
-import java.util.*
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.concurrent.TimeUnit
 
 sealed class PluginUpdateStatus {
@@ -325,10 +329,9 @@ class KotlinPluginUpdater(private val propertiesComponent: PropertiesComponent) 
         fun getInstance(): KotlinPluginUpdater = ServiceManager.getService(KotlinPluginUpdater::class.java)
 
         @Throws(IOException::class, JDOMException::class)
-        fun fetchPluginReleaseDate(pluginId: String, version: String): Date? {
-            // TODO: Need a better request
-            val url =
-                "https://plugins.jetbrains.com/plugins/list?pluginId=$pluginId&pluginVersion=$version"
+        fun fetchPluginReleaseDate(pluginId: String, version: String): LocalDate? {
+            // Need a better request
+            val url = "https://plugins.jetbrains.com/plugins/list?pluginId=$pluginId&pluginVersion=$version"
 
             val responseDoc = HttpRequests.request(url).connect {
                 JDOMUtil.load(it.inputStream)
@@ -342,7 +345,7 @@ class KotlinPluginUpdater(private val propertiesComponent: PropertiesComponent) 
                 return null
             }
 
-            val dateString = responseDoc
+            val dateAttribute: Attribute = responseDoc
                 .getChild("category")
                 ?.getChildren("idea-plugin")
                 ?.mapNotNull { pluginElement ->
@@ -355,7 +358,13 @@ class KotlinPluginUpdater(private val propertiesComponent: PropertiesComponent) 
                 ?.singleOrNull()
                 ?: return null
 
-            return Date(dateString.longValue)
+            val dateLong = try {
+                dateAttribute.longValue
+            } catch (e: DataConversionException) {
+                return null
+            }
+
+            return Instant.ofEpochMilli(dateLong).atZone(ZoneOffset.UTC).toLocalDate()
         }
     }
 }

@@ -32,12 +32,10 @@ import org.jetbrains.kotlin.idea.KotlinPluginUtil
 import org.jetbrains.kotlin.idea.PluginUpdateStatus
 import org.jetbrains.kotlin.idea.util.isEap
 import java.awt.Component
-import java.text.ParseException
-import java.text.SimpleDateFormat
 import java.time.LocalDate
-import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import java.time.temporal.ChronoUnit
-import java.util.*
 import javax.swing.Icon
 
 /**
@@ -106,20 +104,16 @@ class KotlinReportSubmitter : ITNReporterCompat() {
             }
         }
 
-        private val RELEASE_DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd")
+        private val RELEASE_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
-        private fun isFatalErrorReportingDisabled(releaseDate: Date): Boolean {
-            val releaseDateLocal = releaseDate.toInstant()
-                .atZone(ZoneId.systemDefault())
-                .toLocalDate()
-
-            return ChronoUnit.DAYS.between(releaseDateLocal, LocalDate.now()) > NUMBER_OF_REPORTING_DAYS_FROM_RELEASE
+        private fun isFatalErrorReportingDisabled(releaseDate: LocalDate): Boolean {
+            return ChronoUnit.DAYS.between(releaseDate, LocalDate.now()) > NUMBER_OF_REPORTING_DAYS_FROM_RELEASE
         }
 
-        private fun readStoredPluginReleaseDate(): Date? {
+        private fun readStoredPluginReleaseDate(): LocalDate? {
             val pluginVersionToReleaseDate = PropertiesComponent.getInstance().getValue(KOTLIN_PLUGIN_RELEASE_DATE) ?: return null
 
-            val parsedDate = fun(): Date? {
+            val parsedDate = fun(): LocalDate? {
                 val parts = pluginVersionToReleaseDate.split(":")
                 if (parts.size != 2) {
                     return null
@@ -133,8 +127,8 @@ class KotlinReportSubmitter : ITNReporterCompat() {
 
                 return try {
                     val dateString = parts[1]
-                    RELEASE_DATE_FORMAT.parse(dateString)
-                } catch (e: ParseException) {
+                    LocalDate.parse(dateString, RELEASE_DATE_FORMATTER)
+                } catch (e: DateTimeParseException) {
                     null
                 }
             }.invoke()
@@ -146,9 +140,9 @@ class KotlinReportSubmitter : ITNReporterCompat() {
             return parsedDate
         }
 
-        private fun writePluginReleaseValue(date: Date) {
+        private fun writePluginReleaseValue(date: LocalDate) {
             val currentKotlinVersion = KotlinPluginUtil.getPluginVersion()
-            val dateStr = RELEASE_DATE_FORMAT.format(date)
+            val dateStr = RELEASE_DATE_FORMATTER.format(date)
             PropertiesComponent.getInstance().setValue(KOTLIN_PLUGIN_RELEASE_DATE, "$currentKotlinVersion:$dateStr")
         }
     }
