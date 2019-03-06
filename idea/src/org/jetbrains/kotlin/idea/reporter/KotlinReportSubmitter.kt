@@ -55,8 +55,10 @@ class KotlinReportSubmitter : ITNReporterCompat() {
         private var isFatalErrorReportingDisabledInRelease = true
 
         private val isIdeaAndKotlinRelease by lazy {
-            // TODO: check Android Studio
+            // Disabled in released version of IDEA and Android Studio
+            // Enabled in EAPs, Canary and Beta
             val isReleaseLikeIdea = DISABLED_VALUE == System.getProperty(IDEA_FATAL_ERROR_NOTIFICATION_PROPERTY, ENABLED_VALUE)
+
             val isKotlinRelease =
                 !(KotlinPluginUtil.isSnapshotVersion() || KotlinPluginUtil.isDevVersion() || isEap(KotlinPluginUtil.getPluginVersion()))
 
