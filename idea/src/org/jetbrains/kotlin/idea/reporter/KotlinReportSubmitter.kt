@@ -65,7 +65,6 @@ class KotlinReportSubmitter : ITNReporterCompat() {
             isReleaseLikeIdea && isKotlinRelease
         }
 
-        // TODO: Should we check only Kotlin release date? What if old plugin is bundled to Intellij IDEA for the first time?
         private const val NUMBER_OF_REPORTING_DAYS_FROM_RELEASE = 7
 
         fun setupReportingFromRelease() {
