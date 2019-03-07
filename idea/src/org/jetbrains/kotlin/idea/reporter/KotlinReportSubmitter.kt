@@ -23,6 +23,7 @@ import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.IdeaLoggingEvent
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.diagnostic.SubmittedReportInfo
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
@@ -32,6 +33,7 @@ import org.jetbrains.kotlin.idea.KotlinPluginUtil
 import org.jetbrains.kotlin.idea.PluginUpdateStatus
 import org.jetbrains.kotlin.idea.util.isEap
 import java.awt.Component
+import java.io.IOException
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
@@ -49,6 +51,8 @@ class KotlinReportSubmitter : ITNReporterCompat() {
         private const val ENABLED_VALUE = "enabled"
 
         private const val KOTLIN_PLUGIN_RELEASE_DATE = "kotlin.plugin.releaseDate"
+
+        private val LOG = Logger.getInstance(KotlinReportSubmitter::class.java)
 
         // Disabled by default until we can confirm it can be enabled
         @Volatile
@@ -91,8 +95,12 @@ class KotlinReportSubmitter : ITNReporterCompat() {
                             KotlinPluginUtil.KOTLIN_PLUGIN_ID.idString,
                             KotlinPluginUtil.getPluginVersion()
                         )
-                    } catch (e: Throwable) {
-                        // TODO: Should be report problems with fetching version?
+                    } catch (e: IOException) {
+                        // Do not report connection problems
+                        null
+                    } catch (e: KotlinPluginUpdater.Companion.ResponseParseException) {
+                        // Exception won't be shown, but will be logged
+                        LOG.error(e)
                         null
                     }
 

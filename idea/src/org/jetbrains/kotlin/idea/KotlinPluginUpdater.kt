@@ -29,13 +29,13 @@ import com.intellij.util.io.HttpRequests
 import com.intellij.util.text.VersionComparatorUtil
 import org.jdom.Attribute
 import org.jdom.DataConversionException
-import org.jdom.JDOMException
 import org.jetbrains.kotlin.idea.update.verify
 import java.io.File
 import java.io.IOException
 import java.io.PrintWriter
 import java.io.StringWriter
 import java.net.URLEncoder
+import java.time.DateTimeException
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -328,7 +328,9 @@ class KotlinPluginUpdater(private val propertiesComponent: PropertiesComponent) 
 
         fun getInstance(): KotlinPluginUpdater = ServiceManager.getService(KotlinPluginUpdater::class.java)
 
-        @Throws(IOException::class, JDOMException::class)
+        class ResponseParseException(message: String, cause: Exception? = null) : IllegalStateException(message, cause)
+
+        @Throws(IOException::class, ResponseParseException::class)
         fun fetchPluginReleaseDate(pluginId: String, version: String): LocalDate? {
             // Need a better request
             val url = "https://plugins.jetbrains.com/plugins/list?pluginId=$pluginId&pluginVersion=$version"
@@ -338,11 +340,7 @@ class KotlinPluginUpdater(private val propertiesComponent: PropertiesComponent) 
             }
 
             if (responseDoc.name != "plugin-repository") {
-                return null
-            }
-
-            if (responseDoc.children.isEmpty()) {
-                return null
+                throw ResponseParseException("No plugin repository element")
             }
 
             val dateAttribute: Attribute = responseDoc
@@ -356,15 +354,19 @@ class KotlinPluginUpdater(private val propertiesComponent: PropertiesComponent) 
                     }
                 }
                 ?.singleOrNull()
-                ?: return null
+                ?: throw ResponseParseException("Can't find current plugin version")
 
             val dateLong = try {
                 dateAttribute.longValue
             } catch (e: DataConversionException) {
-                return null
+                throw ResponseParseException("Can't convert date value to long", e)
             }
 
-            return Instant.ofEpochMilli(dateLong).atZone(ZoneOffset.UTC).toLocalDate()
+            return try {
+                Instant.ofEpochMilli(dateLong).atZone(ZoneOffset.UTC).toLocalDate()
+            } catch (e: DateTimeException) {
+                throw ResponseParseException("Can't convert to date", e)
+            }
         }
     }
 }
