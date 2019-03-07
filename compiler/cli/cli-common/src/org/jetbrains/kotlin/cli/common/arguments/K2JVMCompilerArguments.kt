@@ -255,8 +255,8 @@ class K2JVMCompilerArguments : CommonCompilerArguments() {
     @Argument(
         value = "-Xsanitize-parentheses",
         description = "Transform '(' and ')' in method names to some other character sequence.\n" +
-                "This mode can BREAK BINARY COMPATIBILITY and is only supposed to be used as a workaround\n" +
-                "of an issue in the ASM bytecode framework. See KT-29475 for more details"
+                "This mode can BREAK BINARY COMPATIBILITY and is only supposed to be used to workaround\n" +
+                "the fact that parentheses are not supported in identifiers on Android"
     )
     var sanitizeParentheses: Boolean by FreezableVar(false)
 

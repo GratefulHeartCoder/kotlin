@@ -19,6 +19,18 @@ the Kotlin IntelliJ IDEA plugin:
      - License: BSD ([license/third_party/asm_license.txt][asm])
      - Origin: Derived from ASM: a very small and fast Java bytecode manipulation framework, Copyright (c) 2000-2011 INRIA, France Telecom
 
+ - Path: compiler/util/src/org/jetbrains/org/objectweb/asm/commons/AnalyzerAdapter.java
+     - License: BSD ([license/third_party/asm_license.txt][asm])
+     - Origin: Derived from ASM: a very small and fast Java bytecode manipulation framework, Copyright (c) 2000-2011 INRIA, France Telecom
+
+ - Path: compiler/util/src/org/jetbrains/org/objectweb/asm/Frame.java
+     - License: BSD ([license/third_party/asm_license.txt][asm])
+     - Origin: Derived from ASM: a very small and fast Java bytecode manipulation framework, Copyright (c) 2000-2011 INRIA, France Telecom
+
+ - Path: compiler/util/src/org/jetbrains/org/objectweb/asm/Type.java
+     - License: BSD ([license/third_party/asm_license.txt][asm])
+     - Origin: Derived from ASM: a very small and fast Java bytecode manipulation framework, Copyright (c) 2000-2011 INRIA, France Telecom
+
  - Path: core/reflection.jvm/src/kotlin.reflect/jvm/internal/pcollections
      - License: MIT ([license/third_party/pcollections_LICENSE.txt][pcollections])
      - Origin: Derived from PCollections, A Persistent Java Collections Library (https://pcollections.org/)

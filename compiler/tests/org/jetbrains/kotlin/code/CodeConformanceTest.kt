@@ -50,6 +50,7 @@ class CodeConformanceTest : TestCase() {
                 "compiler/testData/psi/kdoc",
                 "compiler/tests/org/jetbrains/kotlin/code/CodeConformanceTest.kt",
                 "compiler/util/src/org/jetbrains/kotlin/config/MavenComparableVersion.java",
+                "compiler/util/src/org/jetbrains/org/objectweb/asm",
                 "custom-dependencies/protobuf/protobuf-relocated/build"
         ).map(::File)
 
