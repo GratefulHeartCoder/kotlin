@@ -28,6 +28,7 @@ import com.intellij.openapi.diagnostic.SubmittedReportInfo
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.util.Consumer
+import com.intellij.util.ThreeState
 import org.jetbrains.kotlin.idea.KotlinPluginUpdater
 import org.jetbrains.kotlin.idea.KotlinPluginUtil
 import org.jetbrains.kotlin.idea.PluginUpdateStatus
@@ -54,9 +55,8 @@ class KotlinReportSubmitter : ITNReporterCompat() {
 
         private val LOG = Logger.getInstance(KotlinReportSubmitter::class.java)
 
-        // Disabled by default until we can confirm it can be enabled
         @Volatile
-        private var isFatalErrorReportingDisabledInRelease = true
+        private var isFatalErrorReportingDisabledInRelease = ThreeState.UNSURE
 
         private val isIdeaAndKotlinRelease by lazy {
             // Disabled in released version of IDEA and Android Studio
@@ -73,18 +73,17 @@ class KotlinReportSubmitter : ITNReporterCompat() {
 
         fun setupReportingFromRelease() {
             if (ApplicationManager.getApplication().isUnitTestMode) {
-                isFatalErrorReportingDisabledInRelease = false
                 return
             }
 
             if (!isIdeaAndKotlinRelease) {
-                isFatalErrorReportingDisabledInRelease = false
                 return
             }
 
             val currentPluginReleaseDate = readStoredPluginReleaseDate()
             if (currentPluginReleaseDate != null) {
-                isFatalErrorReportingDisabledInRelease = isFatalErrorReportingDisabled(currentPluginReleaseDate)
+                isFatalErrorReportingDisabledInRelease =
+                    if (isFatalErrorReportingDisabled(currentPluginReleaseDate)) ThreeState.YES else ThreeState.NO
                 return
             }
 
@@ -101,23 +100,42 @@ class KotlinReportSubmitter : ITNReporterCompat() {
                     } catch (e: KotlinPluginUpdater.Companion.ResponseParseException) {
                         // Exception won't be shown, but will be logged
                         LOG.error(e)
-                        null
+                        return@executeOnPooledThread
                     }
 
                 if (releaseDate != null) {
                     writePluginReleaseValue(releaseDate)
-                    isFatalErrorReportingDisabledInRelease = isFatalErrorReportingDisabled(releaseDate)
                 } else {
                     // Will try to fetch the same release date on IDE restart
                 }
+
+                isFatalErrorReportingDisabledInRelease = isFatalErrorReportingWithDefault(releaseDate)
             }
         }
 
-        private val RELEASE_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+        private fun isFatalErrorReportingWithDefault(releaseDate: LocalDate?): ThreeState {
+            return if (releaseDate != null) {
+                if (isFatalErrorReportingDisabled(releaseDate)) ThreeState.YES else ThreeState.NO
+            } else {
+                // Disable reporting by default until we obtain a valid release date.
+                // We might fail reporting exceptions that happened before initialization, but if fetching release date
+                // is successful, such exceptions might be reported after restart.
+                ThreeState.YES
+            }
+        }
+
+        private fun isFatalErrorReportingDisabledWithUpdate(): Boolean {
+            val currentPluginReleaseDate = readStoredPluginReleaseDate()
+            isFatalErrorReportingDisabledInRelease = isFatalErrorReportingWithDefault(currentPluginReleaseDate)
+
+            return isFatalErrorReportingDisabledInRelease == ThreeState.YES
+        }
 
         private fun isFatalErrorReportingDisabled(releaseDate: LocalDate): Boolean {
             return ChronoUnit.DAYS.between(releaseDate, LocalDate.now()) > NUMBER_OF_REPORTING_DAYS_FROM_RELEASE
         }
+
+        private val RELEASE_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
         private fun readStoredPluginReleaseDate(): LocalDate? {
             val pluginVersionToReleaseDate = PropertiesComponent.getInstance().getValue(KOTLIN_PLUGIN_RELEASE_DATE) ?: return null
@@ -165,6 +183,10 @@ class KotlinReportSubmitter : ITNReporterCompat() {
             return true
         }
 
+        if (ApplicationManager.getApplication().isUnitTestMode) {
+            return true
+        }
+
         if (hasUpdate) {
             return false
         }
@@ -175,22 +197,25 @@ class KotlinReportSubmitter : ITNReporterCompat() {
             return false
         }
 
-        if (isIdeaAndKotlinRelease) {
-            if (isFatalErrorReportingDisabledInRelease) {
-                return false
-            } else {
-                // Reiterate the check for the case when there was no restart for long
-                val currentPluginReleaseDate = readStoredPluginReleaseDate()
-                if (currentPluginReleaseDate != null) {
-                    if (isFatalErrorReportingDisabled(currentPluginReleaseDate)) {
-                        isFatalErrorReportingDisabledInRelease = true
-                        return false
-                    }
-                }
-            }
+        if (!isIdeaAndKotlinRelease) {
+            return true
         }
 
-        return true
+        return when (isFatalErrorReportingDisabledInRelease) {
+            ThreeState.YES ->
+                false
+
+            ThreeState.NO -> {
+                // Reiterate the check for the case when there was no restart for long and reporting decision might expire
+                !isFatalErrorReportingDisabledWithUpdate()
+            }
+
+            ThreeState.UNSURE -> {
+                // There might be an exception while initialization isn't complete.
+                // Decide urgently based on previously stored release version if already fetched.
+                !isFatalErrorReportingDisabledWithUpdate()
+            }
+        }
     }
 
     override fun submitCompat(
